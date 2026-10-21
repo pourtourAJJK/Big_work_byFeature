@@ -134,6 +134,26 @@ function formatDate(value: string) {
   }).format(date)
 }
 
+function addDays(days: number) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+// 空列表时展示的示例，点击后填入新增表单，供用户参考。
+function getTaskExamples() {
+  return [
+    { title: "整理本周工作计划", category: "工作", dueDate: addDays(2) },
+    { title: "完成课程作业初稿", category: "学习", dueDate: addDays(4) },
+    { title: "预约年度健康检查", category: "生活", dueDate: addDays(7) },
+    { title: "阅读 30 分钟", category: "学习", dueDate: addDays(1) },
+    { title: "给家里打电话", category: "生活", dueDate: addDays(0) },
+    { title: "备份电脑重要文件", category: "个人", dueDate: addDays(5) },
+  ]
+}
+
 function Modal({
   children,
   onClose,
@@ -212,13 +232,31 @@ export default function App() {
     )
   }
 
+  const [showModalExamples, setShowModalExamples] = useState(false)
+
   function openAddModal() {
+    const firstExample = getTaskExamples()[0]
     setEditingTask(null)
-    setTitle("")
-    setCategory("")
-    setDueDate("")
+    setTitle(firstExample.title)
+    setCategory(firstExample.category)
+    setDueDate(firstExample.dueDate)
     setErrors({})
+    setShowModalExamples(false)
     setIsAddOpen(true)
+  }
+
+  function openExample(example: {
+    title: string
+    category: string
+    dueDate: string
+  }) {
+    setEditingTask(null)
+    setIsAddOpen(true)
+    setTitle(example.title)
+    setCategory(example.category)
+    setDueDate(example.dueDate)
+    setErrors({})
+    setShowModalExamples(false)
   }
 
   function openEditModal(task: Task) {
@@ -503,6 +541,31 @@ export default function App() {
                     添加任务
                   </button>
                 )}
+                {!search && filter === "all" && tasks.length === 0 && (
+                  <div className="example-block">
+                    <p className="example-heading">
+                      以下是示例任务，点击可填入表单作为参考
+                    </p>
+                    <ul className="example-list">
+                      {getTaskExamples().map((example) => (
+                        <li key={example.title}>
+                          <button
+                            className="example-item"
+                            onClick={() => openExample(example)}
+                            type="button"
+                          >
+                            <span className="example-title">
+                              {example.title}
+                            </span>
+                            <span className="example-meta">
+                              {example.category} · {formatDate(example.dueDate)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -537,6 +600,43 @@ export default function App() {
             </button>
           </div>
           <form noValidate onSubmit={handleSubmit}>
+            {!isEditing && (
+              <div className="modal-examples">
+                <button
+                  aria-expanded={showModalExamples}
+                  aria-controls="modal-examples-panel"
+                  className="modal-examples-toggle"
+                  onClick={() => setShowModalExamples((v) => !v)}
+                  type="button"
+                >
+                  <span>试试其他示例任务</span>
+                  <span className="chevron" aria-hidden="true">
+                    {showModalExamples ? "▲" : "▼"}
+                  </span>
+                </button>
+                {showModalExamples && (
+                  <div
+                    className="modal-examples-panel"
+                    id="modal-examples-panel"
+                  >
+                    {getTaskExamples().map((example) => (
+                      <button
+                        className="modal-example-chip"
+                        key={example.title}
+                        onClick={() => openExample(example)}
+                        type="button"
+                      >
+                        {example.title}
+                        <span className="modal-example-chip-meta">
+                          {example.category} ·{" "}
+                          {formatDate(example.dueDate)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="form-field">
               <label htmlFor="task-title">任务标题</label>
               <input

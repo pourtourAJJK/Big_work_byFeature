@@ -556,6 +556,60 @@ h1 {
   font-size: 13px;
 }
 
+.example-block {
+  width: 100%;
+  max-width: 560px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px dashed var(--line);
+}
+
+.empty-state .example-heading {
+  margin-bottom: 12px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.example-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.example-item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.example-item:hover {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.example-title {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.example-meta {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
 .mobile-add {
   display: none;
 }
@@ -615,6 +669,77 @@ h1 {
 
 .close-button:hover {
   background: var(--canvas);
+}
+
+.modal-examples {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--canvas);
+}
+
+.modal-examples-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.modal-examples-toggle:hover {
+  color: var(--green-700);
+}
+
+.modal-examples-toggle .chevron {
+  font-size: 10px;
+  transition: transform 150ms ease;
+}
+
+.modal-examples-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.modal-example-chip {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.modal-example-chip:hover {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.modal-example-chip-meta {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+@media (max-width: 520px) {
+  .modal-examples-panel {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-field {
@@ -741,6 +866,10 @@ h1 {
 
   .desktop-add {
     display: none;
+  }
+
+  .example-list {
+    grid-template-columns: 1fr;
   }
 
   h1 {
