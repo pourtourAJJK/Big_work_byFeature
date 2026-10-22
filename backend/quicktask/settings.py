@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "tasks",
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -142,4 +143,9 @@ REST_FRAMEWORK = {
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True  # 开发阶段允许所有；生产用 CORS_ALLOWED_ORIGINS
 CORS_ALLOW_CREDENTIALS = False
+
+# Media（头像上传用）
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 

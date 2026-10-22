@@ -54,7 +54,7 @@ async function request<T>(
 }
 
 // 认证接口
-export type AuthUser = { id: number; username: string }
+export type AuthUser = { id: number; username: string; avatar: string }
 export type AuthResult = { token: string; user: AuthUser }
 
 export const authApi = {
@@ -73,6 +73,38 @@ export const authApi = {
   setToken,
   clearToken,
   getToken,
+  /** 上传头像（FormData）——返回新的 avatar URL */
+  uploadAvatar: async (file: File): Promise<{ avatar: string }> => {
+    const t = getToken()
+    if (!t) throw new AuthError()
+    const fd = new FormData()
+    fd.append("avatar", file)
+    const res = await fetch(`${API_BASE}/users/avatar/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${t}` },
+      body: fd,
+    })
+    if (res.status === 401) {
+      clearToken()
+      throw new AuthError()
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      throw new Error(`HTTP ${res.status}: ${body}`)
+    }
+    return res.json()
+  },
+  /** 清除头像 */
+  clearAvatar: async (): Promise<void> => {
+    const t = getToken()
+    if (!t) throw new AuthError()
+    const res = await fetch(`${API_BASE}/users/avatar/`, {
+      method: "DELETE",
+      headers: { Authorization: `Token ${t}` },
+    })
+    if (res.status === 401) { clearToken(); throw new AuthError() }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  },
 }
 
 // Task 接口

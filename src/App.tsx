@@ -30,6 +30,89 @@ function daysInMonth(y: number, m: number): number {
   return new Date(y, m + 1, 0).getDate()
 }
 
+// 头像组件：点击打开 file input；上传中禁用；支持清除
+function Avatar({
+  user,
+  onUpload,
+  onClear,
+  size = 38,
+}: {
+  user: AuthUser
+  onUpload: (file: File) => Promise<void>
+  onClear: () => Promise<void>
+  size?: number
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const fileInputRef = useState<HTMLInputElement | null>(null)
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      alert("图片不能超过 2MB")
+      return
+    }
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      alert("请选择 jpg/png/webp/gif 图片")
+      return
+    }
+    setUploading(true)
+    try { await onUpload(file) } catch (err) { alert(err instanceof Error ? err.message : "上传失败") }
+    finally { setUploading(false); setMenuOpen(false) }
+  }
+
+  const initial = user.username.charAt(0).toUpperCase()
+  const img = user.avatar
+
+  return (
+    <div className="avatar-wrapper">
+      <button
+        aria-label="修改头像"
+        className={img ? "avatar-btn has-img" : "avatar-btn"}
+        onClick={() => setMenuOpen((v) => !v)}
+        style={{ width: size, height: size }}
+        type="button"
+      >
+        {uploading ? (
+          <span className="avatar-loading" />
+        ) : img ? (
+          <img alt={`${user.username} 的头像`} src={img} />
+        ) : (
+          <span className="avatar-initial">{initial}</span>
+        )}
+      </button>
+      {menuOpen && (
+        <div className="avatar-menu">
+          <button onClick={() => fileInputRef[0]?.click()} type="button">
+            {img ? "更换头像" : "上传头像"}
+          </button>
+          {img && (
+            <button
+              className="danger"
+              onClick={async () => {
+                setUploading(true)
+                try { await onClear() } catch (err) { alert(err instanceof Error ? err.message : "清除失败") }
+                finally { setUploading(false); setMenuOpen(false) }
+              }}
+              type="button"
+            >
+              清除头像
+            </button>
+          )}
+        </div>
+      )}
+      <input
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={handleChange}
+        ref={(el) => (fileInputRef[1] = el)}
+        style={{ display: "none" }}
+        type="file"
+      />
+    </div>
+  )
+}
+
 // 日历视图组件（内联，保持文件数量最少）
 function CalendarView({
   tasks,
@@ -407,6 +490,16 @@ export default function App() {
     setServerError("")
   }
 
+  async function handleAvatarUpload(file: File) {
+    const { avatar } = await authApi.uploadAvatar(file)
+    setUser((u) => (u ? { ...u, avatar } : u))
+  }
+
+  async function handleAvatarClear() {
+    await authApi.clearAvatar()
+    setUser((u) => (u ? { ...u, avatar: "" } : u))
+  }
+
   // --- 业务操作（全改走 API，乐观更新） ---
   const completedCount = tasks.filter((task) => task.completed).length
   const activeCount = tasks.length - completedCount
@@ -651,6 +744,7 @@ export default function App() {
             <span className="brand-name">QuickTask</span>
           </div>
           <div className="user-area">
+            <Avatar onClear={handleAvatarClear} onUpload={handleAvatarUpload} user={user!} />
             <span className="user-greeting">你好，{user.username}</span>
             <button aria-label="退出登录" className="logout-button" onClick={handleLogout} type="button">
               退出

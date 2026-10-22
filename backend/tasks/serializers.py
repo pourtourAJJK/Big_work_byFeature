@@ -6,10 +6,30 @@ from .models import Task
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """带 avatar URL 的用户序列化器（avatar 存在 profile.avatar 里）"""
+
+    avatar = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ("id", "username")
-        read_only_fields = ("id",)
+        fields = ("id", "username", "avatar")
+        read_only_fields = ("id", "avatar")
+
+    def get_avatar(self, obj):
+        try:
+            profile = obj.profile
+        except UserProfile.DoesNotExist:
+            return ""
+        if not profile.avatar or not profile.avatar.name:
+            return ""
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(profile.avatar.url)
+        return profile.avatar.url
+
+
+from users.models import UserProfile  # noqa: E402 — 放底部避免循环
+
 
 
 class AuthResponseSerializer(serializers.Serializer):
