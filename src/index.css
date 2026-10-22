@@ -846,6 +846,427 @@ h1 {
   }
 }
 
+/* ============ 登录 / 注册界面 ============ */
+
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: linear-gradient(160deg, var(--canvas) 0%, var(--green-50) 100%);
+}
+
+.loading-text {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 40px 32px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.auth-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.auth-brand .brand-mark {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--green-50);
+  color: var(--green-700);
+  margin-bottom: 14px;
+}
+
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.auth-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--canvas);
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.auth-tab.active {
+  background: var(--surface);
+  color: var(--green-700);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form .form-field {
+  margin-bottom: 0;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px rgba(52, 108, 81, 0.15);
+}
+
+.auth-error {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--danger-soft);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.auth-submit {
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.auth-hint code {
+  padding: 1px 5px;
+  background: var(--canvas);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+/* ============ 顶栏用户区 ============ */
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-greeting {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.logout-button {
+  padding: 5px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.logout-button:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ============ 服务器错误条 ============ */
+
+.server-error-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.error-close {
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* ============ 视图切换（列表 / 日历） ============ */
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.view-switch {
+  display: flex;
+  padding: 3px;
+  background: var(--canvas);
+  border-radius: 7px;
+  gap: 2px;
+}
+
+.view-tab {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.view-tab.active {
+  background: var(--surface);
+  color: var(--green-700);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ============ 日历视图 ============ */
+
+.calendar-view {
+  margin-top: 24px;
+}
+
+.calendar-header {
+  margin-bottom: 16px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-nav-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 18px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.calendar-nav-btn:hover {
+  border-color: var(--green-700);
+  color: var(--green-700);
+}
+
+.calendar-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 130px;
+  text-align: center;
+}
+
+.calendar-today-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.calendar-today-btn:hover {
+  border-color: var(--green-700);
+  color: var(--green-700);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+  padding: 6px 0;
+  font-weight: 500;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+  position: relative;
+}
+
+.calendar-cell:hover {
+  border-color: var(--line-strong);
+}
+
+.calendar-cell.out-month {
+  color: var(--ink-faint);
+  opacity: 0.45;
+}
+
+.calendar-cell.in-month {
+  color: var(--ink);
+}
+
+.calendar-cell.is-today {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.calendar-cell.is-selected {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 2px rgba(52, 108, 81, 0.2);
+}
+
+.calendar-cell-day {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.calendar-cell-dot {
+  position: absolute;
+  bottom: 4px;
+  font-size: 9px;
+  color: var(--green-700);
+  font-weight: 600;
+}
+
+.calendar-cell-dot:empty {
+  display: none;
+}
+
+.calendar-selected-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--canvas);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.calendar-selected-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.calendar-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.calendar-task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-task {
+  font-size: 13px;
+  color: var(--ink);
+  padding: 6px 10px;
+  background: var(--surface);
+  border-radius: 6px;
+  border-left: 3px solid var(--green-700);
+}
+
+.calendar-task.done {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+  border-left-color: var(--ink-faint);
+}
+
+.calendar-task-title {
+  font-weight: 500;
+}
+
+.calendar-task-cat {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ============ 720px 以下响应式 ============ */
+
 @media (max-width: 720px) {
   .topbar {
     height: 64px;

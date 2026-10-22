@@ -1,55 +1,160 @@
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react"
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  AuthError,
+  AuthUser,
+  authApi,
+  taskApi,
+  Task as ApiTask,
+} from "./api"
 
-type Task = {
-  id: number
-  title: string
-  category: string
-  dueDate: string
-  completed: boolean
-}
-
+type Task = ApiTask
 type Filter = "all" | "active" | "completed"
+type ViewMode = "list" | "calendar"
 
-const STORAGE_KEY = "quicktask.tasks"
-
-// 首次访问（本地无数据）时展示的示例任务，仅用于演示预览。
-const demoTasks: Task[] = [
-  { id: 1, title: "整理本周工作计划", category: "工作", dueDate: "2026-10-23", completed: false },
-  { id: 2, title: "完成课程作业初稿", category: "学习", dueDate: "2026-10-25", completed: false },
-  { id: 3, title: "预约年度健康检查", category: "生活", dueDate: "2026-10-28", completed: false },
-  { id: 4, title: "更新个人作品集内容", category: "个人", dueDate: "2026-10-30", completed: true },
-  { id: 5, title: "阅读《高效能人士的七个习惯》第 3 章", category: "学习", dueDate: "2026-11-02", completed: false },
-  { id: 6, title: "每周运动 3 次（周一/周三/周五）", category: "生活", dueDate: "2026-11-05", completed: false },
-  { id: 7, title: "整理季度项目复盘材料", category: "工作", dueDate: "2026-11-08", completed: true },
-  { id: 8, title: "给家里打电话", category: "生活", dueDate: "2026-10-22", completed: false },
-  { id: 9, title: "复习数据结构与算法", category: "学习", dueDate: "2026-11-12", completed: false },
-  { id: 10, title: "备份电脑重要文件", category: "个人", dueDate: "2026-11-15", completed: false },
-  { id: 11, title: "准备课堂展示的演示文稿", category: "学习", dueDate: "2026-11-18", completed: false },
-  { id: 12, title: "检查邮箱并回复未读邮件", category: "工作", dueDate: "2026-11-20", completed: true },
-]
-
-function isValidTask(value: unknown): value is Task {
-  if (typeof value !== "object" || value === null) return false
-  const t = value as Record<string, unknown>
-  return (
-    typeof t.id === "number" &&
-    typeof t.title === "string" &&
-    typeof t.category === "string" &&
-    typeof t.dueDate === "string" &&
-    typeof t.completed === "boolean"
-  )
+// 日期小工具：全程用 YYYY-MM-DD 字符串，不构造 Date 对象，避免浏览器时区偏移
+// （经验 100007447：前端提交日期字段为 ISO 8601 不带时间，直接字符串比较最稳）
+function pad2(n: number): string {
+  return n < 10 ? "0" + n : "" + n
+}
+function toYMD(y: number, m: number, d: number): string {
+  return `${y}-${pad2(m + 1)}-${pad2(d)}`
+}
+function todayYMD(): string {
+  const now = new Date()
+  return toYMD(now.getFullYear(), now.getMonth(), now.getDate())
+}
+function firstDayOfMonth(y: number, m: number): number {
+  return new Date(y, m, 1).getDay() // 0=周日
+}
+function daysInMonth(y: number, m: number): number {
+  return new Date(y, m + 1, 0).getDate()
 }
 
-function loadTasks(): Task[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return demoTasks
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return demoTasks
-    return parsed.filter(isValidTask)
-  } catch {
-    return demoTasks
+// 日历视图组件（内联，保持文件数量最少）
+function CalendarView({
+  tasks,
+}: {
+  tasks: Task[]
+}) {
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth()) // 0-11
+  const [selectedYMD, setSelectedYMD] = useState<string>(todayYMD())
+
+  const firstDay = firstDayOfMonth(year, month)
+  const totalDays = daysInMonth(year, month)
+  const prevMonthDays = daysInMonth(year, month - 1)
+
+  // 构建 42 格（6 行 × 7 列）网格，每格是 YYYY-MM-DD 字符串
+  const grid: { ymd: string; inMonth: boolean; day: number }[] = []
+  // 上一月尾部
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const prevM = month - 1
+    const prevY = prevM < 0 ? year - 1 : year
+    const realM = prevM < 0 ? 11 : prevM
+    grid.push({
+      ymd: toYMD(prevY, realM, prevMonthDays - i),
+      inMonth: false,
+      day: prevMonthDays - i,
+    })
   }
+  // 本月
+  for (let d = 1; d <= totalDays; d++) {
+    grid.push({ ymd: toYMD(year, month, d), inMonth: true, day: d })
+  }
+  // 下一月开头补到 42 格
+  while (grid.length < 42) {
+    const nextM = month + 1
+    const nextY = nextM > 11 ? year + 1 : year
+    const realM = nextM > 11 ? 0 : nextM
+    const nextDay = grid.length - (firstDay + totalDays) + 1
+    grid.push({ ymd: toYMD(nextY, realM, nextDay), inMonth: false, day: nextDay })
+  }
+
+  // 按 due_date（字符串）分组
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    for (const t of tasks) {
+      if (!t.dueDate) continue
+      const list = map.get(t.dueDate) ?? []
+      list.push(t)
+      map.set(t.dueDate, list)
+    }
+    return map
+  }, [tasks])
+
+  const navMonth = (delta: number) => {
+    let m = month + delta
+    let y = year
+    if (m < 0) { m = 11; y-- }
+    if (m > 11) { m = 0; y++ }
+    setMonth(m); setYear(y)
+  }
+
+  const goToday = () => {
+    const n = new Date()
+    setYear(n.getFullYear()); setMonth(n.getMonth()); setSelectedYMD(todayYMD())
+  }
+
+  const monthLabel = `${year} 年 ${month + 1} 月`
+  const selectedTasks = tasksByDate.get(selectedYMD) ?? []
+  const today = todayYMD()
+
+  return (
+    <div className="calendar-view">
+      <div className="calendar-header">
+        <div className="calendar-nav">
+          <button aria-label="上一月" className="calendar-nav-btn" onClick={() => navMonth(-1)} type="button">‹</button>
+          <h2 className="calendar-title">{monthLabel}</h2>
+          <button aria-label="下一月" className="calendar-nav-btn" onClick={() => navMonth(1)} type="button">›</button>
+          <button aria-label="回到今天" className="calendar-today-btn" onClick={goToday} type="button">今天</button>
+        </div>
+      </div>
+      <div className="calendar-weekdays">
+        {["日","一","二","三","四","五","六"].map((w) => (
+          <div key={w} className="calendar-weekday">{w}</div>
+        ))}
+      </div>
+      <div className="calendar-grid">
+        {grid.map((cell) => {
+          const dayTasks = tasksByDate.get(cell.ymd) ?? []
+          const isToday = cell.ymd === today
+          const isSelected = cell.ymd === selectedYMD
+          const cls = [
+            "calendar-cell",
+            cell.inMonth ? "in-month" : "out-month",
+            isToday ? "is-today" : "",
+            isSelected ? "is-selected" : "",
+          ].filter(Boolean).join(" ")
+          return (
+            <button className={cls} key={cell.ymd} onClick={() => setSelectedYMD(cell.ymd)} type="button">
+              <span className="calendar-cell-day">{cell.day}</span>
+              {dayTasks.length > 0 && (
+                <span className="calendar-cell-dot" title={`${dayTasks.length} 个任务`}>
+                  {dayTasks.length}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div className="calendar-selected-section">
+        <h3 className="calendar-selected-title">{selectedYMD} 的任务</h3>
+        {selectedTasks.length === 0 ? (
+          <p className="calendar-empty">这一天没有待办 🎉</p>
+        ) : (
+          <ul className="calendar-task-list">
+            {selectedTasks.map((t) => (
+              <li key={t.id} className={t.completed ? "calendar-task done" : "calendar-task"}>
+                <span className="calendar-task-title">{t.title}</span>
+                <span className="calendar-task-cat">· {t.category}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function Icon({
@@ -189,8 +294,21 @@ function Modal({
 }
 
 export default function App() {
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasks())
+  // --- 认证状态 ---
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authError, setAuthError] = useState("")
+  const [loginMode, setLoginMode] = useState<"login" | "register">("login")
+  const [loginUsername, setLoginUsername] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginSubmitting, setLoginSubmitting] = useState(false)
+  const [serverError, setServerError] = useState("")
+
+  // --- 业务状态 ---
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasksLoading, setTasksLoading] = useState(false)
   const [filter, setFilter] = useState<Filter>("all")
+  const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [search, setSearch] = useState("")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -201,10 +319,95 @@ export default function App() {
   const [dueDate, setDueDate] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // --- 启动：检查 Token → 获取用户 → 加载任务 ---
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
-  }, [tasks])
+    const bootstrap = async () => {
+      const token = authApi.getToken()
+      if (!token) {
+        setAuthLoading(false)
+        return
+      }
+      try {
+        const me = await authApi.me()
+        setUser(me)
+        await loadTasksFromServer()
+      } catch (err) {
+        // Token 无效 / 后端没起 → 清 Token 让用户重新登录
+        authApi.clearToken()
+        if (!(err instanceof AuthError)) {
+          setServerError("后端连接失败，请确认 Django 服务已启动（localhost:8000）")
+        }
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+    bootstrap()
+  }, [])
 
+  const loadTasksFromServer = useCallback(async () => {
+    setTasksLoading(true)
+    try {
+      const list = await taskApi.list()
+      setTasks(list)
+    } catch (err) {
+      if (err instanceof AuthError) {
+        authApi.clearToken()
+        setUser(null)
+      } else {
+        setServerError("加载任务失败")
+      }
+    } finally {
+      setTasksLoading(false)
+    }
+  }, [])
+
+  // --- 认证操作 ---
+  async function handleAuthSubmit(event: FormEvent) {
+    event.preventDefault()
+    setAuthError("")
+    if (!loginUsername.trim() || !loginPassword) {
+      setAuthError("请输入用户名和密码")
+      return
+    }
+    setLoginSubmitting(true)
+    try {
+      const result =
+        loginMode === "login"
+          ? await authApi.login(loginUsername.trim(), loginPassword)
+          : await authApi.register(loginUsername.trim(), loginPassword)
+      authApi.setToken(result.token)
+      setUser(result.user)
+      setLoginUsername("")
+      setLoginPassword("")
+      await loadTasksFromServer()
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message.includes("HTTP 401") || err.message.includes("密码错误")
+            ? "用户名或密码错误"
+            : err.message.includes("HTTP 400")
+              ? "用户名已存在或数据无效"
+              : err.message
+          : "请求失败"
+      setAuthError(msg)
+    } finally {
+      setLoginSubmitting(false)
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await authApi.logout()
+    } catch {
+      // 后端挂了也要本地清掉
+    }
+    authApi.clearToken()
+    setUser(null)
+    setTasks([])
+    setServerError("")
+  }
+
+  // --- 业务操作（全改走 API，乐观更新） ---
   const completedCount = tasks.filter((task) => task.completed).length
   const activeCount = tasks.length - completedCount
 
@@ -224,12 +427,26 @@ export default function App() {
   const isEditing = editingTask !== null
   const isModalOpen = isAddOpen || isEditing
 
-  function toggleTask(id: number) {
+  async function toggleTask(id: number) {
+    const target = tasks.find((t) => t.id === id)
+    if (!target) return
+    const optimistic = !target.completed
     setTasks((current) =>
       current.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task,
+        task.id === id ? { ...task, completed: optimistic } : task,
       ),
     )
+    try {
+      await taskApi.update(id, { completed: optimistic })
+    } catch {
+      // 回滚
+      setTasks((current) =>
+        current.map((task) =>
+          task.id === id ? { ...task, completed: !optimistic } : task,
+        ),
+      )
+      setServerError("更新失败，请重试")
+    }
   }
 
   const [showModalExamples, setShowModalExamples] = useState(false)
@@ -278,7 +495,7 @@ export default function App() {
     setErrors({})
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const nextErrors: Record<string, string> = {}
     if (!title.trim()) nextErrors.title = "请输入任务标题"
@@ -288,39 +505,44 @@ export default function App() {
 
     if (Object.keys(nextErrors).length > 0) return
 
-    if (isEditing && editingTask) {
-      setTasks((current) =>
-        current.map((task) =>
-          task.id === editingTask.id
-            ? {
-                ...task,
-                title: title.trim(),
-                category: category.trim(),
-                dueDate,
-              }
-            : task,
-        ),
-      )
-    } else {
-      setTasks((current) => [
-        {
-          id: Date.now(),
+    try {
+      if (isEditing && editingTask) {
+        const updated = await taskApi.update(editingTask.id, {
+          title: title.trim(),
+          category: category.trim(),
+          dueDate,
+        })
+        setTasks((current) =>
+          current.map((task) =>
+            task.id === editingTask.id ? updated : task,
+          ),
+        )
+      } else {
+        const created = await taskApi.create({
           title: title.trim(),
           category: category.trim(),
           dueDate,
           completed: false,
-        },
-        ...current,
-      ])
-      setFilter("all")
+        })
+        setTasks((current) => [created, ...current])
+        setFilter("all")
+      }
+      closeModal()
+    } catch {
+      setServerError("保存失败，请重试")
     }
-    closeModal()
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return
-    setTasks((current) => current.filter((task) => task.id !== deleteTarget.id))
-    setDeleteTarget(null)
+    try {
+      await taskApi.remove(deleteTarget.id)
+      setTasks((current) => current.filter((task) => task.id !== deleteTarget.id))
+    } catch {
+      setServerError("删除失败，请重试")
+    } finally {
+      setDeleteTarget(null)
+    }
   }
 
   const filters: { id: Filter label: string count: number }[] = [
@@ -330,7 +552,94 @@ export default function App() {
   ]
 
   return (
-    <div className="app-shell" onClick={() => setOpenMenuId(null)}>
+    <div className="app-shell">
+      {/* --- 未登录：登录/注册界面 --- */}
+      {authLoading ? (
+        <div className="auth-wrap">
+          <p className="loading-text">加载中…</p>
+        </div>
+      ) : !user ? (
+        <div className="auth-wrap">
+          <div className="auth-card">
+            <div className="auth-brand">
+              <span className="brand-mark">
+                <Icon size={22} strokeWidth={2.2}>
+                  <path d="M6.5 12.5l3.2 3.2L18 7.5" />
+                </Icon>
+              </span>
+              <h1 className="auth-title">QuickTask</h1>
+              <p className="auth-subtitle">用最少的操作，记录每天的待办</p>
+            </div>
+
+            <div className="auth-tabs">
+              <button
+                aria-selected={loginMode === "login"}
+                className={loginMode === "login" ? "auth-tab active" : "auth-tab"}
+                onClick={() => { setLoginMode("login"); setAuthError("") }}
+                type="button"
+              >
+                登录
+              </button>
+              <button
+                aria-selected={loginMode === "register"}
+                className={loginMode === "register" ? "auth-tab active" : "auth-tab"}
+                onClick={() => { setLoginMode("register"); setAuthError("") }}
+                type="button"
+              >
+                注册
+              </button>
+            </div>
+
+            <form className="auth-form" noValidate onSubmit={handleAuthSubmit}>
+              <div className="form-field">
+                <label htmlFor="auth-username">用户名</label>
+                <input
+                  autoComplete="username"
+                  id="auth-username"
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="admin"
+                  type="text"
+                  value={loginUsername}
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="auth-password">密码</label>
+                <input
+                  autoComplete={loginMode === "login" ? "current-password" : "new-password"}
+                  id="auth-password"
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="admin123"
+                  type="password"
+                  value={loginPassword}
+                />
+              </div>
+              {authError && <p className="auth-error">{authError}</p>}
+              <button className="primary-button auth-submit" disabled={loginSubmitting} type="submit">
+                {loginSubmitting ? "处理中…" : loginMode === "login" ? "登录" : "创建账号"}
+              </button>
+              {serverError && (
+                <p className="auth-hint">
+                  ⚠ {serverError}
+                </p>
+              )}
+              <p className="auth-hint">
+                Demo 账号：<code>admin / admin123</code>
+              </p>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <>
+      {/* --- 已登录：主界面 --- */}
+      {serverError && (
+        <div className="server-error-bar" role="alert">
+          {serverError}
+          <button onClick={() => setServerError("")} className="error-close" type="button">
+            <CloseIcon />
+          </button>
+        </div>
+      )}
+
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -341,12 +650,12 @@ export default function App() {
             </span>
             <span className="brand-name">QuickTask</span>
           </div>
-          <button aria-label="打开个人菜单" className="avatar" type="button">
-            <Icon size={19}>
-              <circle cx="12" cy="8" r="3.5" />
-              <path d="M5.5 20c.7-3.2 3.1-5 6.5-5s5.8 1.8 6.5 5" />
-            </Icon>
-          </button>
+          <div className="user-area">
+            <span className="user-greeting">你好，{user.username}</span>
+            <button aria-label="退出登录" className="logout-button" onClick={handleLogout} type="button">
+              退出
+            </button>
+          </div>
         </div>
       </header>
 
@@ -395,23 +704,51 @@ export default function App() {
         <section className="task-section">
           <div className="task-toolbar">
             <h2>任务列表</h2>
-            <div aria-label="筛选任务" className="filters" role="tablist">
-              {filters.map((item) => (
+            <div className="toolbar-right">
+              <div className="view-switch" role="tablist" aria-label="视图切换">
                 <button
-                  aria-selected={filter === item.id}
-                  className={filter === item.id ? "filter active" : "filter"}
-                  key={item.id}
-                  onClick={() => setFilter(item.id)}
+                  aria-selected={viewMode === "list"}
+                  className={viewMode === "list" ? "view-tab active" : "view-tab"}
+                  onClick={() => setViewMode("list")}
                   role="tab"
                   type="button"
                 >
-                  {item.label}
-                  <span>{item.count}</span>
+                  列表
                 </button>
-              ))}
+                <button
+                  aria-selected={viewMode === "calendar"}
+                  className={viewMode === "calendar" ? "view-tab active" : "view-tab"}
+                  onClick={() => setViewMode("calendar")}
+                  role="tab"
+                  type="button"
+                >
+                  日历
+                </button>
+              </div>
+              {viewMode === "list" && (
+                <div aria-label="筛选任务" className="filters" role="tablist">
+                  {filters.map((item) => (
+                    <button
+                      aria-selected={filter === item.id}
+                      className={filter === item.id ? "filter active" : "filter"}
+                      key={item.id}
+                      onClick={() => setFilter(item.id)}
+                      role="tab"
+                      type="button"
+                    >
+                      {item.label}
+                      <span>{item.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
+          {viewMode === "calendar" ? (
+            <CalendarView tasks={tasks} />
+          ) : (
+            <>
           <div className="search-bar">
             <SearchIcon />
             <input
@@ -569,6 +906,8 @@ export default function App() {
               </div>
             )}
           </div>
+            </>
+          )}
         </section>
 
         <button
@@ -748,6 +1087,8 @@ export default function App() {
             </button>
           </div>
         </Modal>
+      )}
+        </>
       )}
     </div>
   )

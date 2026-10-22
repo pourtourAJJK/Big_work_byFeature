@@ -32,19 +32,30 @@ $ pnpm install
 | 2026-10-20（加 12 条内置 demoTasks） | `pnpm build` | ✅ 成功 | 528ms | — |
 | 2026-10-21（加空状态下 6 条可点击示例） | `pnpm build` | ✅ 成功 | 608ms | — |
 | 2026-10-21（加"添加任务"弹窗内示例 + 默认预填） | `pnpm build` | ✅ 成功 | 439ms | — |
+| 2026-10-21（Django 后端 + 登录界面） | `pnpm build` | ✅ 成功 | 226ms | CSS 22.48→25.04 KB（登录样式）；JS 208.89 KB 不变 |
+| 2026-10-21（日历视图 + 视图切换） | `pnpm build` | ✅ 成功 | 371ms | CSS 25.04→28.11 KB（+3KB 日历样式）；JS 212.37 KB 不变 |
 
-典型输出（最近一次，2026-10-21，示例写进弹窗后）：
+典型输出（最近一次，2026-10-21，Django 后端接入后）：
 
 ```
 vite v8.0.5 building client environment for production...
-transforming...✓ 16 modules transformed.
+transforming...✓ 17 modules transformed.
 rendering chunks...
 dist/robots.txt                   0.02 kB │ gzip:  0.04 kB
-dist/index.html                   0.93 kB │ gzip:  0.52 kB
-dist/assets/index-DmkAA3FY.css   22.48 kB │ gzip:  5.56 kB
-dist/assets/index-BL4acVdg.js   205.36 kB │ gzip: 64.80 kB
-✓ built in 439ms
+dist/index.html                   0.93 kB │ gzip:  0.51 kB
+dist/assets/index-DCds6l8c.css   25.04 kB │ gzip:  6.01 kB
+dist/assets/index-CdEjzs1n.js   208.89 kB │ gzip: 65.82 kB
+✓ built in 226ms
 ```
+
+## Django 后端构建
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| 依赖安装 | `pip install -r backend/requirements.txt` | ✅ Django 5.2.6, djangorestframework 3.18.3, django-cors-headers 4.9.0 |
+| 迁移 | `python manage.py migrate` | ✅ 21 条迁移（auth 6 + authtoken 4 + contenttypes/admin/sessions + tasks 1） |
+| admin 初始化 | `python manage.py shell -c "exec(open('init_admin.py').read())"` | ✅ 创建 admin/admin123（幂等，可重复） |
+| 运行 | `python manage.py runserver 0.0.0.0:8000` | ✅ HTTP 200；未带 token 401；登录/创建/列表/更新/删除全通 |
 
 ## 开发服务器
 

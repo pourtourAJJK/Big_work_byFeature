@@ -59,6 +59,63 @@
 
 **验证**：`pnpm build` 通过（439ms）；无头 Chrome dump-dom 确认 `modal-examples-toggle` 静态标记存在于页面 DOM
 
+## 迭代 7 — Django 后端 + 登录功能（2026-10-21）
+
+**触发**：用户要求"利用 Django 框架搭建对应的后端，写整齐对应的字段，然后添加一个登录功能，对应的 Django 框架、后端写进本地项目文件里面"。
+
+**架构变更**：从纯 React + localStorage 单页应用 → Django 5.2 + DRF + TokenAuth 后端 + React 前端 API 调用。已在 `planning-artifacts/architecture.md` 记录完整决策。
+
+**后端新增文件**：
+- `backend/manage.py`、`backend/quicktask/`（Django 项目包）
+- `backend/tasks/models.py` — Task 模型：id, owner(FK→User), title, category, due_date, completed, created_at, updated_at
+- `backend/tasks/serializers.py` — TaskSerializer（输出 dueDate 驼峰）、RegisterSerializer、AuthResponseSerializer
+- `backend/tasks/views.py` — LoginView, RegisterView, LogoutView, CurrentUserView, TaskViewSet（ModelViewSet + IsAuthenticated）
+- `backend/tasks/urls.py` + `backend/quicktask/urls.py` — `/api/auth/*` + `/api/tasks/*`
+- `backend/init_admin.py` — 幂等 admin 创建脚本（admin/admin123）
+- `backend/requirements.txt` — Django 5.2, djangorestframework, django-cors-headers
+
+**后端修改**：
+- `backend/quicktask/settings.py` — INSTALLED_APPS 加 rest_framework, rest_framework.authtoken, corsheaders, tasks；MIDDLEWARE 加 CorsMiddleware；DRF 默认认证 TokenAuthentication；CORS_ALLOW_ALL_ORIGINS=True（开发阶段）
+
+**前端新增文件**：
+- `src/api.ts` — authApi（login/register/logout/me + Token 管理）、taskApi（list/create/update/remove）、AuthError（401 时自动清 Token）
+
+**前端修改（src/App.tsx + src/index.css）**：
+- 移除 `STORAGE_KEY`、`demoTasks`、`loadTasks`、`isValidTask`、`localStorage.setItem` useEffect — 全改走 API
+- auth state：user, authLoading, authError, loginMode, loginUsername, loginPassword, loginSubmitting, serverError
+- 启动流程：bootstrap() → 读 localStorage token → authApi.me() 确认 → taskApi.list() 加载；Token 失效自动清
+- 登录/注册界面：顶部 Brand + Tab 切换 + 用户名/密码表单 + authError；Demo 账号提示 admin/admin123
+- 主界面顶栏：avatar 按钮替换为"你好，{username}" + 退出按钮
+- toggleTask：乐观更新 + 失败回滚
+- handleSubmit / confirmDelete：改成 taskApi.create/update/remove
+- CSS 新增 auth-wrap / auth-card / auth-tabs / auth-form / server-error-bar / user-area / logout-button 等完整样式
+
+**执行命令**：
+```
+cd backend
+pip install -r requirements.txt
+python manage.py migrate            # 21 条迁移（auth + authtoken + tasks）
+python manage.py shell -c "exec(open('init_admin.py').read())"
+python manage.py runserver 0.0.0.0:8000
+```
+
+**端到端 API 测试（Invoke-RestMethod）**：
+| 测试 | 结果 |
+|------|------|
+| 登录 admin/admin123 | ✅ 返回 token + user |
+| 创建 Task | ✅ POST /api/tasks/ 返回完整 Task（含 owner） |
+| 列表 | ✅ 返回 1 条 |
+| 无 token 访问 | ✅ 401 |
+| 无头 Chrome 渲染登录页 | ✅ has-login-title=True, has-login-form=True |
+
+**PowerShell 编码注意**：Windows 控制台中文显示 `????` 是编码问题，Django 实际存的是 UTF-8，前端读没问题。
+
+**经验教训应用**：
+- ✅ `rest_framework.authtoken` 已加进 INSTALLED_APPS（经验 179090 教训：没加会导致 Token 表不存在）
+- ✅ admin 脚本用幂等 get_or_create（经验 179090 建议）
+- ✅ 没删迁移文件（经验 179090 教训）
+- ✅ `dueDate` vs `due_date` 驼峰/蛇形转换在 serializer 层处理，前端不动（经验 1343673 教训）
+
 ---
 
 ## 后续迭代承诺（自我约束）
