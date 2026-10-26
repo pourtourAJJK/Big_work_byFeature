@@ -136,3 +136,8 @@ QuickTask/
 ## BMAD 工作流产物
 
 本项目通过 BMAD-Method v6.12.4 四阶段工作流开发。所有规划/构建/测试产物位于 `_bmad-output/`，每一次迭代的改动摘要、构建记录、测试结果均已归档。
+
+## Git 分支合并证据
+
+- 分支名：feature/branch-proof
+- 说明：每开发一个独立功能模块，创建 feature 分支，完成后 merge --no-ff 回 main
