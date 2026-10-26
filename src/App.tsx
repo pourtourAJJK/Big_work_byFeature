@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AuthError,
   AuthUser,
@@ -44,7 +44,7 @@ function Avatar({
 }) {
   const [uploading, setUploading] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const fileInputRef = useState<HTMLInputElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ""
@@ -84,7 +84,7 @@ function Avatar({
       </button>
       {menuOpen && (
         <div className="avatar-menu">
-          <button onClick={() => fileInputRef[0]?.click()} type="button">
+          <button onClick={() => fileInputRef.current?.click()} type="button">
             {img ? "更换头像" : "上传头像"}
           </button>
           {img && (
@@ -105,7 +105,7 @@ function Avatar({
       <input
         accept="image/jpeg,image/png,image/webp,image/gif"
         onChange={handleChange}
-        ref={(el) => (fileInputRef[1] = el)}
+        ref={fileInputRef}
         style={{ display: "none" }}
         type="file"
       />
@@ -313,8 +313,10 @@ const CloseIcon = () => (
   </Icon>
 )
 
-function formatDate(value: string) {
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—"
   const date = new Date(`${value}T00:00:00`)
+  if (isNaN(date.getTime())) return value // 格式异常就原样返回
   return new Intl.DateTimeFormat("zh-CN", {
     month: "long",
     day: "numeric",
@@ -897,6 +899,18 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+                  {/* 已完成的条：直接露出删除按钮（快捷删除） */}
+                  {task.completed ? (
+                    <button
+                      aria-label={`删除已完成任务 ${task.title}`}
+                      className="quick-delete-button"
+                      onClick={() => setDeleteTarget(task)}
+                      type="button"
+                      title="删除此已完成的任务"
+                    >
+                      <TrashIcon />
+                    </button>
+                  ) : (
                   <div className="menu-wrap">
                     <button
                       aria-expanded={openMenuId === task.id}
@@ -937,6 +951,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                  )}
                 </article>
               ))
             ) : (

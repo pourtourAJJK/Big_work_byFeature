@@ -92,19 +92,60 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     - 登录用户才能访问
     - 只能看到和修改自己的任务
-    - 列表/详情用 TaskSerializer（完整输出）
-    - 创建/更新用 TaskCreateUpdateSerializer（防伪造 owner）
+    - 列表/详情 + 创建/更新响应 **统一用 TaskSerializer**（完整字段，含 id/owner/timestamps）
+    - 但创建/更新的**输入校验**用 TaskCreateUpdateSerializer（防伪造 owner）
     """
 
     permission_classes = (permissions.IsAuthenticated,)
 
     def get_queryset(self):
-        return Task.objects.filter(owner=self.request.user)
+        qs = Task.objects.filter(owner=self.request.user)
+        # 手动支持 DRF 默认没有的 query param 过滤（不用引 django-filter）
+        category = self.request.query_params.get("category", "").strip()
+        if category:
+            qs = qs.filter(category=category)
+        status_param = self.request.query_params.get("status", "").strip()
+        if status_param == "active":
+            qs = qs.filter(completed=False)
+        elif status_param == "completed":
+            qs = qs.filter(completed=True)
+        return qs
 
     def get_serializer_class(self):
-        if self.action in ("create", "update", "partial_update"):
+        # 仅输入校验用简化版；渲染响应始终用完整版
+        if self.action in ("create", "update", "partial_update") and self.request.method in (
+            "POST", "PUT", "PATCH",
+        ):
+            # DRF 会在 initial_data 时调用 get_serializer_class() 做校验
+            # 也会在 save 后再次调它渲染 Response——这里无法区分
+            # 所以 create/update 方法 override 来手动控制
             return TaskCreateUpdateSerializer
         return TaskSerializer
 
+    # ---- 重写 create / update / partial_update：输入用简化 serializer，输出用完整 serializer ----
+
+    def create(self, request, *args, **kwargs):
+        serializer = TaskCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        full = TaskSerializer(serializer.instance, context={"request": request})
+        return Response(full.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = TaskCreateUpdateSerializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        full = TaskSerializer(instance, context={"request": request})
+        return Response(full.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save()

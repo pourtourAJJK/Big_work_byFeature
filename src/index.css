@@ -111,6 +111,40 @@ input:focus-visible {
   background: var(--green-50);
 }
 
+/* 已完成任务条上的快捷删除按钮 */
+.quick-delete-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.quick-delete-button:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.quick-delete-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 已完成条删除按钮与整行的联动：已完成条视觉弱化后，红色按钮更突出 */
+.task-row.completed .quick-delete-button {
+  color: var(--ink-faint);
+}
+
+.task-row.completed .quick-delete-button:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .main-content {
   position: relative;
   width: min(1120px, calc(100% - 64px));
